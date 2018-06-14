@@ -1,61 +1,86 @@
 {
-    "name": "mayaport",
-    "displayName": "MayaPort",
-    "description": "Simple vscode to Maya  command port interface for mel and python scripts",
+    "name": "codeport",
+    "displayName": "CodePort",
+    "description": "Simple vscode to [Maya, Nuke, Max, Houdini] command port interface for python scripts",
     "version": "0.3.0",
-    "publisher": "JonMacey",
+    "publisher": "RyanW",
     "engines": {
         "vscode": "^1.0.0"
     },
     "icon": "logo.png",
-    "homepage": "https://nccastaff.bournemouth.ac.uk/jmacey/",
     "repository": {
         "type": "git",
-        "url": "https://github.com/NCCA/mayaport"
-    },
-    "bugs": {
-        "url": "https://github.com/NCCA/mayaport/issues"
+        "url": "https://github.com/ryan-willis/codeport"
     },
     "categories": [
         "Other"
     ],
     "activationEvents": [
-        "onCommand:extension.openMayaPort"
+        "onCommand:extension.connectPorts"
     ],
     "main": "./extension",
     "contributes": {
         "commands": [
             {
-                "command": "extension.openMayaPort",
-                "title": "mayaPort"
+                "command": "extension.connectPorts",
+                "title": "CodePort Connect"
             },
             {
                 "command": "extension.sendPythonToMaya",
-                "title": "sendPythonToMaya"
+                "title": "Send Python to Maya"
             },
             {
                 "command": "extension.sendMelToMaya",
-                "title": "sendMelToMaya"
+                "title": "Send Mel to Maya"
+            },
+            {
+                "command": "extension.sendPythonToNuke",
+                "title": "Send Python to Nuke"
             }
         ],
         "configuration": {
             "type": "object",
             "title": "port configuration",
             "properties": {
-                "mayaport.melPortID": {
+                "codeport.melPort": {
                     "type": "integer",
-                    "default": 7001,
-                    "description": "the port to send the mel commands ensure they are the same as maya"
+                    "default": 7771,
+                    "description": "Maya's Mel port"
                 },
-                "mayaport.pythonPortID": {
+                "codeport.enableMayaMel": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "activate 'Send Mel to Maya'"
+                },
+                "codeport.enableMayaPython": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "activate 'Send Python to Maya'"
+                },
+                "codeport.enableNukePython": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "activate 'Send Python to Nuke'"
+                },
+                "codeport.pythonPort": {
                     "type": "integer",
-                    "default": 7002,
-                    "description": "the port to send the python commands ensure they are the same as maya"
+                    "default": 7772,
+                    "description": "Maya's Python port"
                 },
-                "mayaport.mayahost": {
+                "codeport.nukePort": {
+                    "type": "integer",
+                    "default": 7773,
+                    "description": "Nuke's Python port"
+                },
+                "codeport.mayaHost": {
                     "type": "string",
                     "default": "localhost",
                     "description": "the hostname of the maya host machine default to local host"
+                },
+                "codeport.nukeHost": {
+                    "type": "string",
+                    "default": "localhost",
+                    "description": "the hostname of the Nuke host machine default to local host"
                 }
             }
         },
@@ -70,6 +95,12 @@
                 "command": "extension.sendMelToMaya",
                 "key": "alt+shift+m",
                 "mac": "ctrl+shift+m",
+                "when": "editorTextFocus"
+            },
+            {
+                "command": "extension.sendPythonToNuke",
+                "key": "alt+shift+n",
+                "mac": "ctrl+shift+n",
                 "when": "editorTextFocus"
             }
         ]

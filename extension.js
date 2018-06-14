@@ -6,15 +6,54 @@ var net = require('net');
 var socketPython;
 // the socket for the mel port create at startup of script
 var socketMel;
+// the socket for the nuke port created at startup of script
+var socketNuke;
 // variables for ports, can be over ridden in config if you wish to use another port, going to default to 7001 for mel and 7002 for python
-var melPort=7001;
-var pythonPort=7002; 
-var mayahost='localhost';
+var melPort    = 7771;
+var pythonPort = 7772;
+var nukePort   = 7773;
+
+var mayaHost='localhost';
+var nukeHost='localhost';
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
+
+var onData = function onData(data) {
+    console.log(data.toString());
+};
+
+var getText = function(){
+    var editor = vscode.window.activeTextEditor;
+    var selection = editor.selection;
+    var text;
+    // if we have selected text only send this
+    if (selection.isEmpty != true ) text = editor.document.getText(selection);
+    else text = editor.document.getText();
+
+    return text;
+};
+
+var sendEditorToSocket = function(socket){
+    var text = getText();
+    socket.write(text);
+    socket.write('\n');
+    vscode.window.setStatusBarMessage("code sent to application");
+};
+
+var createSocket = function(port, host, application) {
+    var sock = net.createConnection(port, host);
+    sock.on('error', function(err) {
+        var message = "Unable to connect to " + application + " port " + port + " on host " + host + ': ' + err.code;
+        console.log(message);
+        vscode.window.showWarningMessage(message);
+    });
+    sock.on('data', onData);
+    return sock;
+}
+
 function activate(context) {
 
-    console.log('"mayaport" is now active!');
+    console.log('"codeport" is now active!');
     console.log('To use make sure the following code is run in Maya python ');
     var msg=`
 import maya.cmds as cmds
@@ -35,96 +74,51 @@ cmds.commandPort(name=":7002", sourceType="python")
     // The command has been defined in the package.json file
     // Now provide the implementation of the command with  registerCommand
     // The commandId parameter must match the command field in package.json
-    var disposable = vscode.commands.registerCommand('extension.openMayaPort', function () 
-    {
-        var config=vscode.workspace.getConfiguration('mayaport');
-        
-        if(config.has("melPortID")){
-            melPort=config.get("melPortID");
-        }
-        if(config.has("pythonPortID")){
-            pythonPort=config.get("pythonPortID");
-        }
-         if(config.has("mayahost")){
-            mayahost=config.get("mayahost");
-        }
-        // create a connection to maya on port 7001 for Mel commands
-        socketMel = net.createConnection( melPort,mayahost);
-        socketMel.on('error', function(error) { 
-            vscode.window.showErrorMessage("Unable to connect to port " + melPort + " on Host " + mayahost +" in maya for Mel " + error.code);
-         });
-        socketMel.on('data', function(data){
-            console.log(data.toString());
-        });
-        // create a connection to maya on port 7002 for python commands
+    var disposable_connections = vscode.commands.registerCommand('extension.connectPorts', function () {
+        var config = vscode.workspace.getConfiguration('codeport');
 
-        socketPython = net.createConnection(pythonPort,mayahost);
-        socketPython.on('error', function(error) { 
-            vscode.window.showErrorMessage("Unable to connect to port "+ pythonPort +" on Host "+ mayahost+"  in maya for Python " + error.code);
-         });
-        socketPython.on('data', function(data){
-            console.log(data.toString());
-        });
+        if(config.has('melPort')) melPort       = config.get("melPort");
+        if(config.has('pythonPort')) pythonPort = config.get("pythonPort");
+        if(config.has('mayaHost')) mayaHost     = config.get("mayaHost");
+        if(config.has('nukePort')) nukePort     = config.get("nukePort")
+        if(config.has('nukeHost')) nukeHost     = config.get("nukeHost");
 
+        if(config.has("enableMayaMel") && config.get("enableMayaMel")) {
+            socketMel = createSocket(melPort, mayaHost, 'Maya');
+        }
+        if(config.has("enableMayaPython") && config.get("enableMayaPython")) {
+            socketPython = createSocket(pythonPort, mayaHost, 'Maya');
+        }
+        if(config.has("enableNukePython") && config.get("enableNukePython")) {
+            socketNuke = createSocket(nukePort, nukeHost, 'Nuke');
+        }
     });
+    context.subscriptions.push(disposable_connections);
 
-    context.subscriptions.push(disposable);
 
-
-    var disposable = vscode.commands.registerCommand('extension.sendPythonToMaya', function () {
-
-        var editor = vscode.window.activeTextEditor;
-        var selection = editor.selection;
-        var text;
-        // if we have selected text only send this
-        if (selection.isEmpty != true )
-        {
-            text = editor.document.getText(selection);     
-        }
-        // otherwise send the whole document
-        else
-        {
-            text=editor.document.getText();
-        }
-        socketPython.write(text);
-        socketPython.write('\n');
-        vscode.window.setStatusBarMessage("Python sent to Maya");
-        
-    
+    var d_py_my = vscode.commands.registerCommand('extension.sendPythonToMaya', function() {
+        sendEditorToSocket(socketPython);
     });
+    context.subscriptions.push(d_py_my);
 
-    context.subscriptions.push(disposable);
+    var d_mel_my = vscode.commands.registerCommand('extension.sendMelToMaya', function() {
+        sendEditorToSocket(socketMel)
+    });
+    context.subscriptions.push(d_mel_my);
 
-    var disposable = vscode.commands.registerCommand('extension.sendMelToMaya', function () {
-
-        var editor = vscode.window.activeTextEditor;
-        var selection = editor.selection;
-        var text;
-        if (selection.isEmpty != true )
-        {
-            text = editor.document.getText(selection);    
-        }
-        else
-        {
-            text=editor.document.getText();
-        }
-        socketMel.write(text);
-        socketMel.write('\n');
-        vscode.window.setStatusBarMessage("mel sent to Maya");
-
-        });
-
-    context.subscriptions.push(disposable);
-
+    var d_py_nuke = vscode.commands.registerCommand('extension.sendPythonToNuke', function() {
+        sendEditorToSocket(socketNuke);
+    });
+    context.subscriptions.push(d_py_nuke);
 }
 
 exports.activate = activate;
-
 
 
 // this method is called when your extension is deactivated
 function deactivate() {
     socketMel.close();
     socketPython.close();
+    socketNuke.close();
 }
 exports.deactivate = deactivate;
